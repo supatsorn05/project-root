@@ -11,35 +11,36 @@ if (!is_array($input)) {
   exit;
 }
 
-$username = trim($input['username'] ?? '');
-$password = (string)($input['password'] ?? '');
-if ($username === '' || $password === '') {
+$identifier = trim($input['email'] ?? $input['username'] ?? '');
+$password   = (string)($input['password'] ?? '');
+
+if ($identifier === '' || $password === '') {
   http_response_code(400);
-  echo json_encode(['status'=>'error','message'=>'กรุณากรอก Username และ Password']);
+  echo json_encode(['status'=>'error','message'=>'กรุณากรอกอีเมล/ชื่อผู้ใช้ และรหัสผ่าน']);
   exit;
 }
 
-$stmt = $pdo->prepare("SELECT id, username, password, full_name, role FROM users WHERE username=:uname LIMIT 1");
-$stmt->execute([':uname' => $username]);
+$isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
+$sql = $isEmail
+  ? "SELECT id, email, username, password, full_name, role FROM users WHERE email = :id LIMIT 1"
+  : "SELECT id, email, username, password, full_name, role FROM users WHERE username = :id LIMIT 1";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute([':id' => $identifier]);
 $user = $stmt->fetch();
 
-if (!$user) {
+if (!$user || !password_verify($password, $user['password'])) {
   http_response_code(401);
-  echo json_encode(['status'=>'error','message'=>'ไม่พบผู้ใช้นี้ในระบบ']);
-  exit;
-}
-
-if (!password_verify($password, $user['password'])) {
-  http_response_code(401);
-  echo json_encode(['status'=>'error','message'=>'รหัสผ่านไม่ถูกต้อง']);
+  echo json_encode(['status'=>'error','message'=>'ข้อมูลเข้าสู่ระบบไม่ถูกต้อง']);
   exit;
 }
 
 $_SESSION['user'] = [
   'id'        => $user['id'],
+  'email'     => $user['email'],
   'username'  => $user['username'],
-  'full_name' => $user['full_name'] ?: $user['username'],
-  'role'      => $user['role'] ?: 'user'
+  'full_name' => $user['full_name'],
+  'role'      => $user['role']
 ];
 
-echo json_encode(['status'=>'success','user'=>$_SESSION['user'],'message'=>'เข้าสู่ระบบสำเร็จ']);
+echo json_encode(['status'=>'success','user'=>$_SESSION['user']]);
