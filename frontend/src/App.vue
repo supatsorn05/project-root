@@ -1,6 +1,5 @@
 <template>
-  <NavBar />  "hiiii"
-
+  <NavBar />
   <router-view/>
 </template>
 
