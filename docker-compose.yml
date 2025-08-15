@@ -1,0 +1,47 @@
+services:
+  php:
+    build:
+      context: ./backend
+    container_name: uni_php
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      - db
+    networks:
+      - app-net
+
+  db:
+    image: mysql:5.7
+    container_name: uni_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: university_portal
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-net
+
+  adminer:
+    image: adminer
+    container_name: uni_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - app-net
+
+volumes:
+  db_data:
+
+networks:
+  app-net:
+    driver: bridge
