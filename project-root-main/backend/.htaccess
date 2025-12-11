@@ -1,0 +1,8 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} .+
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# For PHP-FPM or other SAPI that might not pass Authorization header
+SetEnvIfNoCase Authorization "(.+)" HTTP_AUTHORIZATION=$1

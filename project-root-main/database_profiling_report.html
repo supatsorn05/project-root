@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงานการวิเคราะห์โปรไฟล์ฐานข้อมูล</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary-color: #003366;
+            --secondary-color: #f4f7fc;
+            --text-color: #333;
+            --light-text-color: #666;
+            --border-color: #e0e0e0;
+            --header-height: 60px;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 80px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            display: flex;
+            font-size: 16px;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background-color: var(--primary-color);
+            color: white;
+            padding-top: 20px;
+            transition: width 0.3s ease;
+            overflow-x: hidden;
+            z-index: 1000;
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 0 20px;
+        }
+        
+        .sidebar-header .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.2rem;
+            white-space: nowrap;
+        }
+        
+        .sidebar.collapsed .sidebar-header h2 {
+            display: none;
+        }
+        
+        .sidebar.collapsed .logo i {
+            margin: 0 auto;
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+        }
+
+        .sidebar nav a {
+            display: flex;
+            align-items: center;
+            padding: 12px 25px;
+            color: white;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+        }
+
+        .sidebar nav a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar nav a i {
+            margin-right: 15px;
+        }
+        
+        .sidebar.collapsed nav a span {
+            display: none;
+        }
+        
+        .sidebar.collapsed nav a i {
+            margin-right: 0;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            width: calc(100% - var(--sidebar-width));
+            transition: margin-left 0.3s ease, width 0.3s ease;
+            padding-top: var(--header-height);
+        }
+        
+        body.sidebar-collapsed .main-content {
+            margin-left: var(--sidebar-collapsed-width);
+            width: calc(100% - var(--sidebar-collapsed-width));
+        }
+
+        header.main-header {
+            height: var(--header-height);
+            background-color: white;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            left: var(--sidebar-width);
+            width: calc(100% - var(--sidebar-width));
+            transition: left 0.3s ease, width 0.3s ease;
+            z-index: 999;
+        }
+        
+        body.sidebar-collapsed header.main-header {
+            left: var(--sidebar-collapsed-width);
+            width: calc(100% - var(--sidebar-collapsed-width));
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        main {
+            padding: 20px;
+        }
+
+        section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        h1, h2, h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+        
+        h1 { font-size: 2rem; }
+        h2 { font-size: 1.5rem; }
+        h3 { font-size: 1.2rem; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-left: 5px solid var(--primary-color);
+            border-radius: 5px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .stat-card .icon {
+            flex-shrink: 0;
+        }
+
+        .stat-card .info h3 {
+            margin: 0;
+            font-size: 2.5rem;
+            color: var(--text-color);
+        }
+
+        .stat-card .info p {
+            margin: 0;
+            color: var(--light-text-color);
+            font-size: 1rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table.schema-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        table.schema-table th, table.schema-table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        table.schema-table thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        table.schema-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        table.schema-table td .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: white;
+        }
+        .badge.pk { background-color: #28a745; }
+        .badge.fk { background-color: #17a2b8; }
+        .badge.unique { background-color: #ffc107; color: #333; }
+        .badge.nullable { background-color: #6c757d; }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-info { background-color: #e7f3fe; border-left: 5px solid #2196F3; }
+        .alert-warning { background-color: #fff8e1; border-left: 5px solid #ffc107; }
+        .alert-danger { background-color: #fdecea; border-left: 5px solid #f44336; }
+        .alert-success { background-color: #e8f5e9; border-left: 5px solid #4CAF50; }
+
+        p {
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+                display: none; /* Hidden by default on mobile */
+            }
+            .sidebar.toggled {
+                display: block;
+            }
+            .main-content, body.sidebar-collapsed .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+            header.main-header, body.sidebar-collapsed header.main-header {
+                position: static;
+                width: 100%;
+            }
+            .header-title {
+                font-size: 1.2rem;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .sidebar-toggle.mobile {
+                display: none;
+            }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i data-lucide="database"></i>
+                <h2>DB Profiling</h2>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#overview"><i data-lucide="layout-dashboard"></i><span>ภาพรวม</span></a></li>
+                <li><a href="#stats"><i data-lucide="bar-chart-2"></i><span>สถิติโดยรวม</span></a></li>
+                <li><a href="#schema"><i data-lucide="database-zap"></i><span>โครงสร้างตาราง</span></a></li>
+                <li><a href="#recommendations"><i data-lucide="alert-triangle"></i><span>ข้อควรระวัง</span></a></li>
+                <li><a href="#etl"><i data-lucide="arrow-right-left"></i><span>ETL</span></a></li>
+                <li><a href="#dwh"><i data-lucide="warehouse"></i><span>Data Warehouse</span></a></li>
+                <li><a href="#bi"><i data-lucide="pie-chart"></i><span>Business Intelligence</span></a></li>
+                <li><a href="#roadmap"><i data-lucide="map"></i><span>แผนการดำเนินงาน</span></a></li>
+                <li><a href="#risks"><i data-lucide="shield-alert"></i><span>ความเสี่ยง</span></a></li>
+                <li><a href="#conclusion"><i data-lucide="check-circle-2"></i><span>บทสรุป</span></a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <div class="main-content" id="main-content">
+        <header class="main-header">
+            <button class="sidebar-toggle" id="sidebar-toggle">
+                <i data-lucide="menu"></i>
+            </button>
+            <div class="header-title">รายงานการวิเคราะห์โปรไฟล์ฐานข้อมูล</div>
+            <div><!-- placeholder --></div>
+        </header>
+
+        <main>
+            <section id="overview">
+                <h1><i data-lucide="layout-dashboard"></i> ภาพรวม (Overview)</h1>
+                <p>เอกสารนี้จัดทำขึ้นเพื่อวิเคราะห์และสรุปโปรไฟล์ของฐานข้อมูล <strong>university_portal</strong> ซึ่งเป็นส่วนหนึ่งของโครงการพัฒนาระบบจัดการโครงงานสหกิจศึกษา วัตถุประสงค์หลักคือเพื่อทำความเข้าใจโครงสร้างข้อมูล, ความสัมพันธ์, และคุณภาพของข้อมูลเบื้องต้น เพื่อใช้เป็นแนวทางในการพัฒนา, บำรุงรักษา, และต่อยอดระบบในอนาคต เช่น การทำ Data Warehouse, Business Intelligence, และการวางแผนกลยุทธ์ด้านข้อมูล</p>
+                <p>ฐานข้อมูลนี้ถูกออกแบบมาเพื่อรองรับการทำงานของผู้ใช้งาน 3 กลุ่มหลัก ได้แก่ ผู้ดูแลระบบ (Admin), อาจารย์ (Teacher), และนิสิต (Student) โดยครอบคลุมกระบวนการตั้งแต่การจัดการผู้ใช้, การสร้างและจัดการโครงงาน, ไปจนถึงการยื่นและตรวจสอบเอกสารที่เกี่ยวข้อง</p>
+            </section>
+
+            <section id="stats">
+                <h2><i data-lucide="bar-chart-2"></i> สถิติโดยรวม (Overall Statistics)</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon"><i data-lucide="table-2" style="color: #003366;" size="48"></i></div>
+                        <div class="info">
+                            <h3>10</h3>
+                            <p>จำนวนตารางทั้งหมด</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon"><i data-lucide="list-tree" style="color: #003366;" size="48"></i></div>
+                        <div class="info">
+                            <h3>65</h3>
+                            <p>จำนวนคอลัมน์ทั้งหมด</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon"><i data-lucide="link-2" style="color: #003366;" size="48"></i></div>
+                        <div class="info">
+                            <h3>13+</h3>
+                            <p>ความสัมพันธ์ (Foreign Keys)</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon"><i data-lucide="key-round" style="color: #003366;" size="48"></i></div>
+                        <div class="info">
+                            <h3>11</h3>
+                            <p>Primary Keys</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="schema">
+                <h2><i data-lucide="database-zap"></i> โครงสร้างตาราง (Table Schema)</h2>
+                
+                <!-- Users Table -->
+                <h3>1. ตาราง `users`</h3>
+                <p>จัดเก็บข้อมูลผู้ใช้งานระบบทั้งหมด (Admin, Teacher, Student) และข้อมูลการเข้าสู่ระบบ</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT, รหัสเฉพาะของผู้ใช้งาน</td></tr>
+                            <tr><td>email</td><td>VARCHAR(255)</td><td><span class="badge unique">UNIQUE</span> NOT NULL, อีเมลสำหรับเข้าสู่ระบบ</td></tr>
+                            <tr><td>username</td><td>VARCHAR(255)</td><td><span class="badge unique">UNIQUE</span> ชื่อผู้ใช้งานสำหรับเข้าสู่ระบบ</td></tr>
+                            <tr><td>password</td><td>VARCHAR(255)</td><td>NOT NULL, รหัสผ่านที่ถูกแฮช</td></tr>
+                            <tr><td>full_name</td><td>VARCHAR(255)</td><td>NOT NULL, ชื่อ-นามสกุลของผู้ใช้งาน</td></tr>
+                            <tr><td>role</td><td>ENUM('admin', 'teacher', 'student')</td><td>NOT NULL, บทบาทของผู้ใช้งาน</td></tr>
+                            <tr><td>session_token</td><td>VARCHAR(255)</td><td><span class="badge unique">UNIQUE</span> โทเค็นสำหรับจัดการเซสชัน</td></tr>
+                            <tr><td>profile_image_url</td><td>VARCHAR(255)</td><td><span class="badge nullable">NULL</span> URL รูปโปรไฟล์</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Advisors Table -->
+                <h3 style="margin-top: 25px;">2. ตาราง `advisors`</h3>
+                <p>จัดเก็บข้อมูลเพิ่มเติมของอาจารย์ที่ปรึกษา</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>advisor_id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT, รหัสเฉพาะของอาจารย์</td></tr>
+                            <tr><td>user_id</td><td>INT</td><td><span class="badge fk">FK</span> <span class="badge unique">UNIQUE</span> NOT NULL, อ้างอิงถึง `users(id)`</td></tr>
+                            <tr><td>department</td><td>VARCHAR(255)</td><td><span class="badge nullable">NULL</span> ภาควิชา</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Academic Terms Table -->
+                <h3 style="margin-top: 25px;">3. ตาราง `academic_terms`</h3>
+                <p>จัดเก็บข้อมูลปีและภาคการศึกษา</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>term_id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT, รหัสเฉพาะของภาคการศึกษา</td></tr>
+                            <tr><td>academic_year</td><td>INT</td><td>NOT NULL, ปีการศึกษา</td></tr>
+                            <tr><td>term_name</td><td>VARCHAR(50)</td><td>NOT NULL, ชื่อภาคการศึกษา</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Projects Table -->
+                <h3 style="margin-top: 25px;">4. ตาราง `projects`</h3>
+                <p>ตารางหลักสำหรับจัดเก็บข้อมูลของแต่ละโครงงาน</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>project_id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT, รหัสเฉพาะของโครงงาน</td></tr>
+                            <tr><td>project_name</td><td>VARCHAR(255)</td><td>NOT NULL, ชื่อโครงงาน (ภาษาไทย)</td></tr>
+                            <tr><td>project_name_en</td><td>VARCHAR(255)</td><td><span class="badge nullable">NULL</span> ชื่อโครงงาน (ภาษาอังกฤษ)</td></tr>
+                            <tr><td>main_advisor_id</td><td>INT</td><td><span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `advisors(advisor_id)`</td></tr>
+                            <tr><td>secondary_advisor_id</td><td>INT</td><td><span class="badge fk">FK</span> <span class="badge nullable">NULL</span> อ้างอิงถึง `advisors(advisor_id)`</td></tr>
+                            <tr><td>term_id</td><td>INT</td><td><span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `academic_terms(term_id)`</td></tr>
+                            <tr><td>abstract</td><td>TEXT</td><td><span class="badge nullable">NULL</span> บทคัดย่อของโครงงาน</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Students Table -->
+                <h3 style="margin-top: 25px;">5. ตาราง `students`</h3>
+                <p>จัดเก็บข้อมูลเพิ่มเติมของนิสิต</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>student_id</td><td>VARCHAR(20)</td><td><span class="badge pk">PK</span> รหัสนิสิต</td></tr>
+                            <tr><td>user_id</td><td>INT</td><td><span class="badge fk">FK</span> <span class="badge unique">UNIQUE</span> NOT NULL, อ้างอิงถึง `users(id)`</td></tr>
+                            <tr><td>group_name</td><td>VARCHAR(255)</td><td><span class="badge nullable">NULL</span> ชื่อกลุ่มโครงงาน</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Project Members Table -->
+                <h3 style="margin-top: 25px;">6. ตาราง `project_members`</h3>
+                <p>ตารางเชื่อม (Junction Table) สำหรับความสัมพันธ์ Many-to-Many ระหว่าง `projects` และ `students`</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>project_id</td><td>INT</td><td><span class="badge pk">PK</span> <span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `projects(project_id)`</td></tr>
+                            <tr><td>student_id</td><td>VARCHAR(20)</td><td><span class="badge pk">PK</span> <span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `students(student_id)`</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Document Templates Table -->
+                <h3 style="margin-top: 25px;">7. ตาราง `document_templates`</h3>
+                <p>จัดเก็บลิงก์ดาวน์โหลดไฟล์เทมเพลตเอกสารต่างๆ</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>template_id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT</td></tr>
+                            <tr><td>template_name</td><td>VARCHAR(255)</td><td>NOT NULL, ชื่อเทมเพลต</td></tr>
+                            <tr><td>pdf_url</td><td>VARCHAR(255)</td><td><span class="badge nullable">NULL</span> URL สำหรับไฟล์ .pdf</td></tr>
+                            <tr><td>docx_url</td><td>VARCHAR(255)</td><td><span class="badge nullable">NULL</span> URL สำหรับไฟล์ .docx</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Submission Document Types Table -->
+                <h3 style="margin-top: 25px;">8. ตาราง `submission_document_types`</h3>
+                <p>กำหนดประเภทของเอกสารที่นิสิตต้องอัปโหลดส่งในระบบ</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>doc_type_id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT</td></tr>
+                            <tr><td>doc_code</td><td>VARCHAR(50)</td><td><span class="badge unique">UNIQUE</span> NOT NULL, รหัสเอกสาร (เช่น 'CS01')</td></tr>
+                            <tr><td>doc_name</td><td>VARCHAR(255)</td><td>NOT NULL, ชื่อเต็มของเอกสาร</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Submitted Documents Table -->
+                <h3 style="margin-top: 25px;">9. ตาราง `submitted_documents`</h3>
+                <p>บันทึกไฟล์เอกสารที่แต่ละโครงงานได้อัปโหลดเข้ามาในระบบ</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>submission_id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT</td></tr>
+                            <tr><td>project_id</td><td>INT</td><td><span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `projects(project_id)`</td></tr>
+                            <tr><td>doc_type_id</td><td>INT</td><td><span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `submission_document_types(doc_type_id)`</td></tr>
+                            <tr><td>file_path</td><td>VARCHAR(255)</td><td>NOT NULL, ตำแหน่งที่จัดเก็บไฟล์</td></tr>
+                            <tr><td>uploaded_at</td><td>DATETIME</td><td>DEFAULT CURRENT_TIMESTAMP</td></tr>
+                            <tr><td>status</td><td>ENUM('submitted', 'approved', 'rejected')</td><td>NOT NULL DEFAULT 'submitted'</td></tr>
+                            <tr><td>comment</td><td>TEXT</td><td><span class="badge nullable">NULL</span> ความคิดเห็นจากอาจารย์</td></tr>
+                            <tr><td>uploader_user_id</td><td>INT</td><td><span class="badge fk">FK</span> <span class="badge nullable">NULL</span> อ้างอิงถึง `users(id)`</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Student Documents Table -->
+                <h3 style="margin-top: 25px;">10. ตาราง `student_documents`</h3>
+                <p>บันทึกไฟล์เอกสารที่นิสิตส่งให้อาจารย์โดยตรง (ไม่ผ่านโครงงาน)</p>
+                <div class="table-container">
+                    <table class="schema-table">
+                        <thead><tr><th>ชื่อคอลัมน์</th><th>ชนิดข้อมูล</th><th>ข้อจำกัด / คำอธิบาย</th></tr></thead>
+                        <tbody>
+                            <tr><td>student_document_id</td><td>INT</td><td><span class="badge pk">PK</span> AUTO_INCREMENT</td></tr>
+                            <tr><td>student_id</td><td>VARCHAR(20)</td><td><span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `students(student_id)`</td></tr>
+                            <tr><td>teacher_user_id</td><td>INT</td><td><span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `users(id)` (อาจารย์ผู้รับ)</td></tr>
+                            <tr><td>doc_type_id</td><td>INT</td><td><span class="badge fk">FK</span> NOT NULL, อ้างอิงถึง `submission_document_types(doc_type_id)`</td></tr>
+                            <tr><td>file_path</td><td>VARCHAR(255)</td><td>NOT NULL, ไฟล์ที่นิสิตอัปโหลด</td></tr>
+                            <tr><td>uploaded_at</td><td>DATETIME</td><td>NOT NULL DEFAULT CURRENT_TIMESTAMP</td></tr>
+                            <tr><td>status</td><td>ENUM('submitted', 'approved', 'rejected')</td><td>NOT NULL DEFAULT 'submitted'</td></tr>
+                            <tr><td>comment</td><td>TEXT</td><td><span class="badge nullable">NULL</span> ความคิดเห็นจากอาจารย์</td></tr>
+                            <tr><td>teacher_file_path</td><td>VARCHAR(255)</td><td><span class="badge nullable">NULL</span> ไฟล์ที่อาจารย์อัปโหลดกลับ</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="recommendations">
+                <h2><i data-lucide="alert-triangle"></i> ข้อควรระวังและคำแนะนำ (Alerts & Recommendations)</h2>
+                <div class="alert alert-warning">
+                    <i data-lucide="shield-half"></i>
+                    <div>
+                        <strong>คำแนะนำ:</strong> ควรพิจารณาเพิ่ม Indexing ให้กับคอลัมน์ที่เป็น Foreign Key (FK) เช่น `projects.main_advisor_id`, `submitted_documents.project_id` เพื่อเพิ่มประสิทธิภาพในการ Query ข้อมูลที่เกี่ยวข้องกัน
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <i data-lucide="database"></i>
+                    <div>
+                        <strong>ข้อมูล:</strong> การใช้ ENUM สำหรับคอลัมน์ `role` และ `status` ช่วยให้ข้อมูลมีความสอดคล้องกัน แต่การเปลี่ยนแปลงค่าในอนาคตจะต้องแก้ไขโครงสร้างตาราง (ALTER TABLE)
+                    </div>
+                </div>
+                <div class="alert alert-danger">
+                    <i data-lucide="key-round"></i>
+                    <div>
+                        <strong>ความเสี่ยง:</strong> คอลัมน์ `password` ในตาราง `users` ถูกจัดเก็บในรูปแบบแฮช ซึ่งเป็นวิธีที่ถูกต้อง แต่ต้องแน่ใจว่าใช้ Hashing Algorithm ที่ปลอดภัยและทันสมัย (เช่น Argon2, bcrypt)
+                    </div>
+                </div>
+                 <div class="alert alert-success">
+                    <i data-lucide="check-check"></i>
+                    <div>
+                        <strong>จุดเด่น:</strong> การแยกตาราง `project_members` ทำให้รองรับการทำงานโครงงานแบบกลุ่ม (นิสิตหลายคนต่อหนึ่งโครงงาน) ได้อย่างมีประสิทธิภาพ ซึ่งเป็นโครงสร้างที่ดี (Many-to-Many)
+                    </div>
+                </div>
+            </section>
+
+            <section id="etl">
+                <h2><i data-lucide="arrow-right-left"></i> กระบวนการ ETL (Extract, Transform, Load)</h2>
+                <p>ส่วนนี้จะอธิบายแผนการพัฒนากระบวนการ ETL ในอนาคต เพื่อนำข้อมูลจากฐานข้อมูล `university_portal` ไปยัง Data Warehouse</p>
+                <ul>
+                    <li><strong>Extract:</strong> ดึงข้อมูลจากตารางต่างๆ เช่น `projects`, `users`, `submitted_documents` ตามรอบเวลาที่กำหนด (เช่น ทุกคืน)</li>
+                    <li><strong>Transform:</strong>
+                        <ul>
+                            <li>แปลงข้อมูลวันที่และเวลาให้อยู่ในรูปแบบมาตรฐาน</li>
+                            <li>รวมข้อมูลจากหลายตาราง (Join) เพื่อสร้าง Fact Table เช่น ข้อมูลโครงงานพร้อมรายละเอียดอาจารย์ที่ปรึกษาและภาคการศึกษา</li>
+                            <li>สร้าง Dimension Tables เช่น DimDate, DimAdvisor, DimStudent</li>
+                            <li>คำนวณค่า Metric ใหม่ๆ เช่น ระยะเวลาตั้งแต่ส่งเอกสารจนถึงการอนุมัติ</li>
+                        </ul>
+                    </li>
+                    <li><strong>Load:</strong> นำข้อมูลที่ผ่านการ Transform แล้ว โหลดเข้าสู่ตารางใน Data Warehouse</li>
+                </ul>
+            </section>
+
+            <section id="dwh">
+                <h2><i data-lucide="warehouse"></i> Data Warehouse</h2>
+                <p>Data Warehouse จะถูกออกแบบโดยใช้ Star Schema เพื่อให้ง่ายต่อการวิเคราะห์และทำรายงาน โดยมีตารางหลัก (Fact Table) และตารางมิติ (Dimension Table) ดังตัวอย่าง</p>
+                <ul>
+                    <li><strong>FactProjectSubmissions:</strong> ตารางข้อเท็จจริงที่เก็บข้อมูลการส่งเอกสารของแต่ละโครงงาน เช่น `project_id`, `advisor_id`, `student_id`, `term_id`, `submission_date_key`, `approval_date_key`, `submission_count`, `time_to_approve_days`</li>
+                    <li><strong>DimProjects:</strong> ตารางมิติเก็บรายละเอียดโครงงาน</li>
+                    <li><strong>DimAdvisors:</strong> ตารางมิติเก็บรายละเอียดอาจารย์ที่ปรึกษา</li>
+                    <li><strong>DimStudents:</strong> ตารางมิติเก็บรายละเอียดนิสิต</li>
+                    <li><strong>DimDate:</strong> ตารางมิติเก็บรายละเอียดเกี่ยวกับเวลา (วัน, เดือน, ไตรมาส, ปี)</li>
+                </ul>
+            </section>
+
+            <section id="bi">
+                <h2><i data-lucide="pie-chart"></i> Business Intelligence (KPIs & Dashboard)</h2>
+                <h3>Key Performance Indicators (KPIs)</h3>
+                <p>จากข้อมูลใน Data Warehouse เราสามารถสร้าง KPI เพื่อวัดผลการดำเนินงานได้ เช่น:</p>
+                <ul>
+                    <li>อัตราการอนุมัติเอกสาร (Document Approval Rate)</li>
+                    <li>ระยะเวลาเฉลี่ยในการตรวจเอกสาร (Average Document Review Time)</li>
+                    <li>จำนวนโครงงานต่ออาจารย์ที่ปรึกษา (Projects per Advisor)</li>
+                    <li>แนวโน้มหัวข้อโครงงานที่ได้รับความนิยม (Trending Project Topics)</li>
+                </ul>
+                <h3>Dashboard</h3>
+                <p>สร้าง Dashboard เพื่อแสดงผล KPI และข้อมูลเชิงลึกในรูปแบบกราฟที่เข้าใจง่าย สำหรับผู้บริหารและผู้ที่เกี่ยวข้อง เพื่อใช้ในการตัดสินใจและวางแผนกลยุทธ์</p>
+            </section>
+
+            <section id="roadmap">
+                <h2><i data-lucide="map"></i> แผนการดำเนินงาน (Roadmap)</h2>
+                <p>แผนการพัฒนาและต่อยอดการใช้ประโยชน์จากข้อมูลในอนาคต</p>
+                <ol>
+                    <li><strong>Phase 1 (Q1-Q2 2026):</strong> พัฒนาและทดสอบกระบวนการ ETL พื้นฐาน และสร้าง Data Warehouse Schema</li>
+                    <li><strong>Phase 2 (Q3 2026):</strong> สร้าง Dashboard แรกสำหรับผู้ดูแลระบบ เพื่อติดตามภาพรวมการส่งเอกสาร</li>
+                    <li><strong>Phase 3 (Q4 2026):</strong> พัฒนา Dashboard สำหรับอาจารย์ เพื่อดูภาระงานและประสิทธิภาพการตรวจเอกสาร</li>
+                    <li><strong>Phase 4 (2027):</strong> นำ Machine Learning มาใช้ในการวิเคราะห์หัวข้อโครงงาน หรือแนะนำอาจารย์ที่ปรึกษาที่เหมาะสม</li>
+                </ol>
+            </section>
+
+            <section id="risks">
+                <h2><i data-lucide="shield-alert"></i> ความเสี่ยง (Risks)</h2>
+                <ul>
+                    <li><strong>Data Quality:</strong> ข้อมูลบางส่วนอาจไม่มีความสมบูรณ์ (เช่น `project_name_en`, `abstract`) ซึ่งอาจส่งผลต่อการวิเคราะห์</li>
+                    <li><strong>Scalability:</strong> หากมีจำนวนโครงงานและเอกสารเพิ่มขึ้นอย่างรวดเร็ว อาจต้องมีการปรับปรุงประสิทธิภาพของฐานข้อมูลและ Query</li>
+                    <li><strong>Data Privacy:</strong> ข้อมูลส่วนบุคคล (PII) ในตาราง `users` และ `students` ต้องมีการจัดการการเข้าถึงอย่างรัดกุมตามนโยบายความเป็นส่วนตัว</li>
+                </ul>
+            </section>
+
+            <section id="conclusion">
+                <h2><i data-lucide="check-circle-2"></i> บทสรุป (Conclusion)</h2>
+                <p>ฐานข้อมูล `university_portal` มีโครงสร้างที่ค่อนข้างดีและเป็นมาตรฐาน รองรับการทำงานหลักของระบบได้ครบถ้วน การออกแบบโดยใช้ Foreign Key ช่วยรักษาความถูกต้องของข้อมูล (Data Integrity) ได้เป็นอย่างดี</p>
+                <p>ข้อเสนอแนะหลักคือการเพิ่ม Index ให้กับคอลัมน์ที่ใช้ในการ Join บ่อยๆ เพื่อเพิ่มประสิทธิภาพในระยะยาว และวางแผนจัดการข้อมูลส่วนบุคคลอย่างรัดกุม โครงสร้างปัจจุบันเป็นพื้นฐานที่ดีเยี่ยมสำหรับการต่อยอดไปสู่ระบบ Business Intelligence และการวิเคราะห์ข้อมูลขั้นสูงในอนาคต</p>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const mainContent = document.getElementById('main-content');
+            const body = document.body;
+
+            // --- Lucide Icons ---
+            lucide.createIcons();
+
+            // --- Sidebar Toggle ---
+            sidebarToggle.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    // On mobile, just toggle the display
+                    sidebar.classList.toggle('toggled');
+                } else {
+                    // On desktop, toggle the collapsed class
+                    body.classList.toggle('sidebar-collapsed');
+                    sidebar.classList.toggle('collapsed');
+                }
+                // Recalculate icons after transition
+                setTimeout(lucide.createIcons, 300);
+            });
+
+            // --- Smooth Scrolling ---
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    if (targetElement) {
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                        // Close mobile sidebar after clicking a link
+                        if (window.innerWidth <= 768 && sidebar.classList.contains('toggled')) {
+                            sidebar.classList.remove('toggled');
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
